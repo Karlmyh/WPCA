@@ -1,0 +1,113 @@
+\documentclass[10pt, oneside]{article} 
+
+\usepackage{amsmath, amsthm, amssymb,amsfonts,appendix}
+\usepackage{bbm, bm,booktabs}
+\usepackage{calrsfs,color,cite,caption,ctex}
+\usepackage{esint,enumitem}
+\usepackage{fancyhdr,fontspec,float}
+\usepackage{graphicx,graphics,geometry}
+\usepackage{indentfirst}
+\usepackage{listings}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+	language=Python,
+	aboveskip=3mm,
+	belowskip=3mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle={\small\ttfamily},
+	numbers=none,
+	numberstyle=\tiny\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=3
+}
+\usepackage[labelfont=bf]{caption}
+\usepackage{mathptmx}
+\usepackage{stmaryrd,siunitx,subfigure,setspace}
+\usepackage[stable]{footmisc}
+\usepackage{tikz,textcomp}
+\usetikzlibrary{fit,positioning,arrows,automata}
+\usepackage{verbatim}
+\usepackage{wasysym}
+\usepackage{wrapfig}
+
+
+
+\geometry{tmargin=.75in, bmargin=.75in, lmargin=.75in, rmargin = .75in}  
+
+
+
+\newtheorem{thm}{Theorem}
+\newtheorem{defn}{Definition}
+\newtheorem{conv}{Convention}
+\newtheorem{rem}{Remark}
+\newtheorem{lem}{Lemma}
+\newtheorem{cor}{Corollary}
+
+
+\title{
+Notes
+}
+\author{171240510 Yuheng Ma\\[0.3cm]{.}}
+\date{Summer 2020}
+
+\begin{document}
+
+\maketitle
+
+\vspace{.25in}
+
+\section*{Notation}
+\begin{itemize}
+\item N number of time series
+\item T length of time series
+\item $y_t$ N$\times$1 vector of observation at $\mathbf{t}$
+\item $f_t$ q$\times$1 factor at $\mathbf{t}$
+\item B $N\times q$ loading matrix
+\end{itemize}
+
+\section*{Method}
+PCA:
+\begin{equation}
+\operatorname{argmin}_{\mathbf{f}_{\mathbf{f}} \in \mathbb{R}^{K}} \sum_{t=1}^{T}\left(\mathbf{y}_{t}-\mathbf{B f}_{t}\right)^{\prime}\left(\mathbf{y}_{t}-\mathbf{B} \mathbf{f}_{t}\right)
+\end{equation}
+\par
+WPCA:
+\begin{equation}
+\operatorname{argmin}_{\mathbf{f}_{\mathbf{f}} \in \mathbb{R}^{K}} \sum_{t=1}^{T}\left(\mathbf{y}_{t}-\mathbf{B f}_{t}\right)^{\prime} \Sigma_{u}^{-1}\left(\mathbf{y}_{t}-\mathbf{B} \mathbf{f}_{t}\right)
+\end{equation}
+
+\par 
+Karlman Filter
+
+%%尝试的方法包括：
+
+%对Doz（2011）等
+
+\section*{Experiment}
+
+Cholesky decomposition is not positive definite. 
+\begin{figure}[H]
+
+  \includegraphics[width=\linewidth]{error.png}
+
+  \label{fig: error}
+    \end{figure}
+
+\section*{Reference}
+
+\begin{itemize}
+\item Quefeng Li, Guang Cheng, Jianqing Fan \& Yuyan Wang (2018) Embracing the Blessing of Dimensionality in Factor Models, Journal of the American Statistical Association, 113:521, 380-389, DOI: 10.1080/01621459.2016.1256815
+
+
+\item Bai, J., and Liao, Y. (2013), “Statistical Inferences Using Large Estimated Covariances for Panel Data and Factor Models,” arXiv:1307.2662. [380,381,382,383]
+\end{itemize}
+
+\end{document}

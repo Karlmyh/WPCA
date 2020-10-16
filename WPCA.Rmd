@@ -1,0 +1,302 @@
+---
+title: "WPCA"
+author: "Yuheng Ma"
+date: "9/8/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## High dimentional factor estimation
+
+Direct implementation of (dynamic) factor models estimation methods, mainly weighted PCA method. 
+
+Parameter settings:
+N the number of time series
+T the length of time series
+q the chosen number of factors
+W the weight matrix
+sigmainv the precision matrix
+X=(x_1,..,x_T)' the observation with dim N*T
+F=(f_1,..,f_T)' the factors with dim T*q
+B the loading matrix with dim N*q
+C a hyperparameter that needs Cross validation
+~hat stands for estimation of ~
+
+```{r}
+# functions needed
+library(MASS)
+argmin<-function(y,index=NULL){
+  index=seq(length(y))
+  return(index[which(y==min(y))[1]])
+}
+
+largesteigen<-function(A,q,ifvalue=0){
+  # given a matrix A, return largest q eigenvectors (as colmumns in a matrix)
+  values<-eigen(A,symmetric = TRUE)$values
+  vectors<-eigen(A,symmetric = TRUE)$vectors
+  N<-dim(A)[1]
+  ifeigenvalue<-{order(values)>N-q}
+  ifeigenvector<-which(ifeigenvalue!=0)
+  if(ifvalue==1){return(values[ifeigenvalue])}
+  return(vectors[,ifeigenvector])
+}
+```
+
+
+```{r}
+wpca<-function(W,X,N,T,q){
+  # do wpca assuming that q is known
+  # set W=diag(N) is just PCA method
+  if(dim(X)[2]!=T||dim(X)[1]!=N){return("Data dim error")}
+  Fhat<-largesteigen(t(X)%*%W%*%X/sqrt(T),q)
+  Bhat<-X%*%Fhat
+  #Bhat<-X%*%Fhat/T
+  return(list(Fhat,Bhat))
+}
+```
+
+
+
+```{r}
+# covariance matrix estimation
+# provided in the paper
+covestimation<-function(X,N,T,q,C){
+  if(dim(X)[2]!=T||dim(X)[1]!=N){return("Data dim error")}
+  samplecov<-cov(t(X))
+  mainpart<-largesteigen(samplecov,q)%*%diag(largesteigen(samplecov,q,1))%*%t(largesteigen(samplecov,q))
+  
+  R<-samplecov-mainpart
+  
+  for (i in 1:N){
+    if(-0.00001<R[i,i]&&R[i,i]<0){R[i,i]=0}
+  }
+  for (i in 1:N) {
+    for (j in 1:N){
+      if(i!=j){
+        R[i,j]<-R[i,j]*{abs(R[i,j])>C*sqrt(R[i,i]*R[j,j]*{sqrt(log(N)/T)+1/sqrt(N)})}
+      }
+    }
+  }
+  return(R+mainpart)
+}
+```
+
+
+
+
+```{r}
+# funcion that specify q 
+# details in "Determining the number of factors in approximate factor model" by Bai and Ng.
+specifyq<-function(X,N,T,range=0,C){
+  if(dim(X)[2]!=T||dim(X)[1]!=N){return("Data dim error")}
+  if(range==0){
+  range<-c(2:10)
+  }
+  Khat<-seq(length(range))
+  for (i in 1:length(range)){ 
+    W<-ginv(covestimation(X,N,T,range[i],C))
+    Fhat<-wpca(W,X,N,T,range[i])[[1]]
+    mat<-X-{X%*%Fhat%*%t(Fhat)}/T
+    Khat[i]<-log(sum(diag(t(mat)%*%mat))/N/T)+i*{N+T}*log(N*T/{N+T})/{N*T}
+  }
+  print(Khat)
+  return(range[argmin(Khat)])
+}
+```
+
+```{r}
+# put everything together
+# assuming C is known
+# C will be determined by cross validation, and is empirically set to 1
+factorestimation<-function(X,N,T,q=0,C,method="EPCA",ifprint=1){
+  if(length(q)==1){
+  if(q==0){
+  q<-specifyq(X,N,T,C=C)
+  #print("q")
+  #print(q)
+  }
+    else{
+  #q<-specifyq(X,N,T,q,C)
+      if(ifprint==1){
+  #print("q")
+  #print(q)
+        }
+  }
+  }
+  if(length(q)!=1){
+    q<-specifyq(X,N,T,q,C)
+  #print("q")
+  #print(q)
+  }
+  if(method=="WPCA"){W<-ginv(covestimation(X=X,N=N,T=T,q=q,C=C))}
+  if(method=="WPCAdiagonal"){W<-ginv(diag(diag(cov(t(X)))))
+  }
+  if(method=="EPCA"){W<-ginv(cov(t(X)))}
+  if(method=="PCA"){W<-diag(N)}
+  result<-wpca(W=W,X=X,N=N,T=T,q=q)
+  prediction<-result[[2]]%*%t(result[[1]])
+
+  #preerror<-prediction-X
+  return(result)
+}
+```
+
+
+
+```{r}
+## real data experiment 
+setwd("/Users/mayuheng/Desktop/DFM/Recent2/data_dfm")
+data<-read.csv("681data.csv")
+depvar<-read.csv("mid.csv",encoding="UTF-8")
+depvar<-read.csv("input.csv")
+colnames(data)<-NULL
+rownames(data)<-NULL
+data[,1]<-NULL
+data<-apply(data,2,as.numeric)
+
+```
+
+```{r}
+lireg<-function(method,dep,C){
+  #use determined factor to regress
+  q=8
+result<-factorestimation(t(data),681,180,q=q,C=C,method = method)
+Fhat<-as.data.frame(result[[1]])
+Fhat<-cbind(Fhat,depvar[,dep])
+colnames(Fhat)[q+1]<-"input"
+inputlinear<-lm(input~.,Fhat)
+print(summary(inputlinear)$r.squared)
+}
+```
+
+Real data application functions.
+
+```{r}
+# foreward prediction using vector autoregressive model
+varpre<-function(n,Fhat,lag){
+  Fhat<-as.data.frame(Fhat)
+  varmodel<-VAR(Fhat[1:n,],lag.max = lag)
+  pre<-predict(varmodel,n.ahead = 12,ci=0.95)
+  result<-NULL
+  for (i in 1:ncol(Fhat)){
+    result<-cbind(result,pre$fcst[[i]][,1])
+  }
+  return(result)
+}
+
+```
+
+```{r}
+# prediction function for wpca itself
+evaluateprewpca<-function(data,depvar,year,q,C,var=1:12){
+  year=year-1
+  T=year*12
+  deltaM<-depvar[13:T,]-depvar[1:{T-12},]
+    factorspre<-factorestimation(t(data)[,1:{{year}*12}],681,{year}*12,q,C,"WPCAdiagonal")[[1]]
+        pre<-varpre(year*12,factorspre,1)
+    
+  predfactors<-cbind(rep(1,12),pre)
+  
+  predresult<-NULL
+  for (ii in var) {
+    fit<-as.data.frame(cbind(deltaM[,ii],factorspre[13:T,]))
+    
+    lmodel<-lm(V1~.,fit)
+    coef<-matrix(lmodel$coefficients,ncol = 1)
+    predresult<-cbind(predresult,predfactors%*%coef)
+  }
+  predresult<-predresult+depvar[{T-11}:T,]
+  return(predresult)
+}
+``` 
+
+
+```{r}
+#using arima for comparison
+evaluateprearima<-function(depvar,year,var=1:12){
+  year=year-1
+  T=year*12
+  predresult<-NULL
+  deltaM<-depvar[13:T,]-depvar[1:{T-12},]
+    for (i in var) {
+      amodel<-arima(deltaM[,i],order = c(1,0,0))
+      pre<-forecast(amodel,h=12)
+      predresult<-cbind(predresult,as.numeric(pre$mean))
+    }
+  predresult<-predresult+depvar[{T-11}:T,]
+  return(predresult)
+}
+
+```
+
+```{r}
+#calculating rmse
+rmse<-function(A,B){
+  A<-as.matrix(A)
+  B<-as.matrix(B)
+  temp<-{A-B}*{A-B}
+  temp<-sum(temp)
+  temp<-temp/dim(A)[1]/dim(A)[2]
+  return(sqrt(temp))
+}
+```
+
+
+```{r}
+# predictions by method which use wpca as inits and MARSS model as MLE adjust
+# functions marss.dfm refers to others
+evaluatepre<-function(result,data=0,depvar,year,q,var=1:12){
+  year=year-1
+  T=year*12
+  deltaM<-depvar[13:T,]-depvar[1:{T-12},]
+  if(data!=0){
+  factorspre<-factorestimation(t(data)[,1:{{year}*12}],681,{year}*12,q,1,"WPCAdiagonal")[[1]]
+  result=marss.dfm(t(factorspre),q)
+  }
+  predresult<-NULL
+  pre<-predict(result,n.ahead = 12,type = "xtT")
+  predfactors<-matrix(rep(0,12*q),ncol = q)
+  for (i in 1:q) {
+    for (j in 1:12) {
+      predfactors[j,i]<-pre$pred$estimate[{i-1}*{{year+1}*12}+j+{{year}*12}]
+    }  
+  }
+  predfactors<-cbind(rep(1,12),predfactors)
+  
+  for (ii in var) {
+    fit<-as.data.frame(cbind(deltaM[,ii],t(result$states)[13:T,]))
+    
+    lmodel<-lm(V1~.,fit)
+    coef<-matrix(lmodel$coefficients,ncol = 1)
+    predresult<-cbind(predresult,predfactors%*%coef)
+  }
+  predresult<-predresult+depvar[{T-11}:T,]
+  return(predresult)
+}
+
+```
+
+
+
+```{r}
+# dynamic pca method
+dpca<-function(X,N,T,q=0,C=1,method="EPCA",window=6){
+  Fhat<-NULL
+  for (i in 1:T){
+    if(i%%10==0){print(i)}
+    winstart<-max(i-window+1,1)
+    winend<-min(i+window-1,T)
+    t=winend-winstart+1
+    Fhatwindow<-factorestimation(X[,winstart:winend],N=N,T=t,q=q,C=C,method=method,ifprint = 0)[[1]]
+    print(dim(Fhatwindow))
+    #print(winstart)
+    Fhat<-rbind(Fhat,Fhatwindow[i-winstart+1,])
+  }
+  return(Fhat)
+}
+```
+
+
+
+
