@@ -56,6 +56,51 @@ wpca<-function(W,X,N,T,q){
 }
 ```
 
+```{r}
+library(tseries)
+library(MARSS)
+#x data set，n number of factors，states is the estimaton
+marss.dfm=function(x,n){
+  MARSS.data=x
+  n.indi=nrow(x)
+  n.state=n     ######definiting numbers of states
+  Z=matrix(NA,n.indi,n.state)
+  for(i in 1:(n.state)){
+    for(j in 1:(n.indi)){
+      Z[j,i]=paste("z",j,"-",i,sep="")
+    }
+  }
+  B=matrix(NA,n.state,n.state)
+  for(i in 1:(n.state)){
+    for(j in 1:(n.state)){
+      B[j,i]=paste("b",j,"-",i,sep="")
+    }
+  }
+  U=matrix(NA,n.state,1)
+  for(i in 1:(n.state)){
+    U[i,1]=paste("u",i,"-",1,sep="")
+  }
+  A=matrix(NA,n.indi,1)
+  for(i in 1:(n.indi)){
+    A[i,1]=paste("a",i,"-",1,sep="")
+  }
+  Q="diagonal and unequal"
+  R="diagonal and unequal"
+  Iinit=list(Z=0.5,
+             B=0.5,
+             U=0,
+             Q=0.5,
+             A=0.5,
+             R=0.5,
+             x0=0.5,
+             V0=0
+  )
+  result.marss.init=MARSS(y=MARSS.data,model=list(Z=Z,A=A,B=B,U=U,Q=Q,R=R),inits=Iinit,silent=TRUE)
+  result.marss.exact=MARSS(y=MARSS.data,model=list(Z=Z,A=A,B=B,U=U,Q=Q,R=R),inits=result.marss.init$par,silent=TRUE)
+  result.marss=MARSS(y=MARSS.data,model=list(Z=Z,A=A,B=B,U=U,Q=Q,R=R),inits=result.marss.exact$par,silent=TRUE)
+  return(result.marss)
+}
+```
 
 
 ```{r}
@@ -188,6 +233,29 @@ varpre<-function(n,Fhat,lag){
 ```
 
 ```{r}
+sumof<-function(A,k){
+  A<-as.matrix(A)
+  n<-dim(A)[1]/k
+  result<-NULL
+  for (i in 1:n) {
+    result<-rbind(result,apply(A[{k*i-k+1}:{k*i},], MARGIN = 2, sum))
+  }
+  return(result)
+}
+```
+
+```{r}
+rmse<-function(A,B){
+  A<-as.matrix(A)
+  B<-as.matrix(B)
+  temp<-{A-B}*{A-B}
+  temp<-sum(temp)
+  temp<-temp/dim(A)[1]/dim(A)[2]
+  return(sqrt(temp))
+}
+```
+
+```{r}
 # prediction function for wpca itself
 evaluateprewpca<-function(data,depvar,year,q,C,var=1:12){
   year=year-1
@@ -230,54 +298,121 @@ evaluateprearima<-function(depvar,year,var=1:12){
 
 ```
 
+
+
 ```{r}
-#calculating rmse
-rmse<-function(A,B){
-  A<-as.matrix(A)
-  B<-as.matrix(B)
-  temp<-{A-B}*{A-B}
-  temp<-sum(temp)
-  temp<-temp/dim(A)[1]/dim(A)[2]
-  return(sqrt(temp))
+#depvar is depvar
+#T length of depvar, default set to 180
+# note that must be multiple of 12
+#method={ASPCA,PCAMARSS,ASPCAMARSS}
+#q the number of common factors
+#result the corresponding MARSS object if required
+#note that length of result$states must be compatible with T-12 (if ifdiff=1) or T (if =0)
+#ifdiff the flag variable, =1 if using differencing, -0 if not
+#numdepvar the number of midinput
+#ifprint the flag variable, set to 1 if need to print summary of lm (read R^2)
+#wavelet the parameter needed by aspca
+evaluatefit<-function(depvar,method,q,T=180,result=0,ifdiff=1,numdepvar=9,ifprint=0,wavelet=0){
+  deltaMfit<-NULL
+  depvarfit<-NULL
+  #differencing
+  deltaM=depvar[1:{T-12},]-depvar[13:T,]
+  if(method=="PCAMARSS"||method=="ASPCAMARSS"){
+    if(ifdiff==1){
+      for (t in 1:numdepvar) {
+        #do regression
+        fitdeltaM<-as.data.frame(cbind(deltaM[,t],t(result$states)))
+        mmodel<-lm(V1~.,fitdeltaM)
+        if(ifprint==1){print(summary(mmodel))}
+        deltaMfit<-cbind(deltaMfit,mmodel$fitted.values)
+      }
+      depvarfit<-deltaMfit+depvar[1:{T-12},]
+      return(depvarfit)
+    }
+    if(ifdiff==0){
+      for (t in 1:numdepvar) {
+        #do regression
+        fit<-as.data.frame(cbind(depvar[1:T,t],t(result$states)))
+        mmodel<-lm(V1~.,fitdeltaM)
+        if(ifprint==1){print(summary(mmodel))}
+        depvarfit<-cbind(depvarfit,mmodel$fitted.values)
+      }
+      return(depvarfit)
+    }
+  }
+  if(method=="ASPCA"){
+    alpha=wavelet[1]
+    beta=wavelet[2]
+    itthres=-5
+    q=wavelet[3]
+    ##############################################
+    setwd("/Users/mayuheng/Desktop/DFM/PCs")
+    
+    data<-read.csv(paste("result","a",as.character(alpha),"b",as.character(beta),"i",as.character(itthres),"q",as.character(q),".csv",sep = ""),header = FALSE)
+    ##note that data generally need modification########
+    data<-data[25:204,]
+    ### check!!!!!!!!!!!!!!!!!#######################
+    if(ifdiff==1){
+      for (t in 1:numdepvar) {
+        #do regression
+        fitdeltaM<-as.data.frame(cbind(deltaM[,t],data))
+        mmodel<-lm(V1~.,fitdeltaM)
+        if(ifprint==1){print(summary(mmodel))}
+        deltaMfit<-cbind(deltaMfit,mmodel$fitted.values)
+      }
+      depvarfit<-deltaMfit+depvar[1:{T-12},]
+      return(depvarfit)
+    }
+    if(ifdiff==0){
+      for (t in 1:numdepvar) {
+        #do regression
+        fit<-as.data.frame(cbind(depvar[1:T,t],data))
+        mmodel<-lm(V1~.,fitdeltaM)
+        if(ifprint==1){print(summary(mmodel))}
+        depvarfit<-cbind(depvarfit,mmodel$fitted.values)
+      }
+      return(depvarfit)
+    }
+  }
 }
 ```
 
-
 ```{r}
-# predictions by method which use wpca as inits and MARSS model as MLE adjust
-# functions marss.dfm refers to others
-evaluatepre<-function(result,data=0,depvar,year,q,var=1:12){
-  year=year-1
-  T=year*12
+#default using differencing
+#T must correspond to result obeject T=len(result)+12
+evaluatepre<-function(result,data=0,depvar,T,q,step=36,var=1:9){
+  if(dim(result$states)[2]!=T-12){return("time length error")}
   deltaM<-depvar[13:T,]-depvar[1:{T-12},]
   if(data!=0){
-  factorspre<-factorestimation(t(data)[,1:{{year}*12}],681,{year}*12,q,1,"WPCAdiagonal")[[1]]
-  result=marss.dfm(t(factorspre),q)
+    #factorspre<-factorestimation(t(data)[,1:T],681,T,q,1,"WPCAdiagonal")[[1]]
+    result=marss.dfm(data,q)
   }
   predresult<-NULL
-  pre<-predict(result,n.ahead = 12,type = "xtT")
-  predfactors<-matrix(rep(0,12*q),ncol = q)
+  pre<-predict(result,n.ahead = step,type = "xtT")
+  predfactors<-matrix(rep(0,step*q),ncol = q)
   for (i in 1:q) {
-    for (j in 1:12) {
-      predfactors[j,i]<-pre$pred$estimate[{i-1}*{{year+1}*12}+j+{{year}*12}]
-    }  
+    for (j in 1:step) {
+      predfactors[j,i]<-pre$pred$estimate[{i-1}*{T-12+step}+j+{T-12}]
+    }
   }
-  predfactors<-cbind(rep(1,12),predfactors)
-  
+  predfactors<-cbind(rep(1,step),predfactors)
   for (ii in var) {
-    fit<-as.data.frame(cbind(deltaM[,ii],t(result$states)[13:T,]))
+    fit<-as.data.frame(cbind(deltaM[,ii],t(result$states)[1:{T-12},]))
     
     lmodel<-lm(V1~.,fit)
     coef<-matrix(lmodel$coefficients,ncol = 1)
     predresult<-cbind(predresult,predfactors%*%coef)
   }
-  predresult<-predresult+depvar[{T-11}:T,]
-  return(predresult)
+  colnames(predresult)<-colnames(depvar)
+  predresult<-rbind(depvar[1:T,],predresult)
+  for (iii in 1:step) {
+    predresult[T+iii,]=predresult[T+iii-12,]+predresult[T+iii,]
+  }
+  return(predresult[{T+1}:{T+step},])
+  #return(predresult)
 }
 
 ```
-
-
 
 ```{r}
 # dynamic pca method

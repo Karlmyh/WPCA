@@ -73,6 +73,10 @@ Notes
 \item B $N\times q$ loading matrix
 \end{itemize}
 
+我们考虑加权主成分方法（Weighted PCA）。对p维观察数据$\mathbf{y}_{t}=\left(y_{1 t}, \ldots, y_{p t}\right)^{\prime} \in \mathbb{R}^{p}$，有$$\mathbf{y}_{t}=\mathbf{B} \mathbf{f}_{t}+\mathbf{u}_{t}, \quad t=1, \ldots, T$$其中$\mathbf{f}_{t} \in \mathbb{R}^{K}$是K维公共因子，B为因子载荷矩阵。根据Bai and Liao 2013，$$\widehat{\mathbf{F}}=\left(\widehat{\mathbf{f}}_{1}, \ldots, \widehat{\mathbf{f}}_{T}\right)^{\prime}$$
+$$\widehat{\mathbf{B}}=T^{-1} \mathbf{Y} \widehat{\mathbf{F}}$$
+即为F与B的相合估计。
+
 \section*{Method}
 PCA:
 \begin{equation}

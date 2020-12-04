@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.999992 (TeX Live 2020) (preloaded format=xelatex 2020.9.19)  16 OCT 2020 13:26
+This is XeTeX, Version 3.14159265-2.6-0.999992 (TeX Live 2020) (preloaded format=xelatex 2020.9.19)  23 OCT 2020 19:48
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1179,15 +1179,15 @@ LaTeX Font Warning: Font shape `TU/ptm/b/n' undefined
 
 File: error.png Graphic file (type bmp)
 <error.png>
+[1
 
-Overfull \hbox (31.858pt too wide) in paragraph at lines 107--108
+]
+Overfull \hbox (31.858pt too wide) in paragraph at lines 111--112
 \TU/ptm/m/n/10 Factor Models, Journal of the American Statistical Association, 
 113:521, 380-389, DOI: 10.1080/01621459.2016.1256815 
  []
 
-[1
-
-] [2] (./draft.aux)
+[2] (./draft.aux)
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
@@ -1196,12 +1196,12 @@ LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
  ) 
 Here is how much of TeX's memory you used:
- 26471 strings out of 479418
- 603317 string characters out of 5884585
- 849819 words of memory out of 5000000
- 43472 multiletter control sequences out of 15000+600000
+ 26524 strings out of 479418
+ 607185 string characters out of 5884585
+ 849859 words of memory out of 5000000
+ 43525 multiletter control sequences out of 15000+600000
  562944 words of font info for 136 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 60i,6n,81p,443b,351s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 60i,6n,81p,471b,246s stack positions out of 5000i,500n,10000p,200000b,80000s
 
 Output written on draft.pdf (2 pages).
