@@ -1,3 +1,3 @@
-# Dynamic Factor Model
+# Weighted PCA
 
-Codes and experiment result for dynamic factor model predictions.
+Codes and experiment result for dynamic factor model predictions using wpca.
