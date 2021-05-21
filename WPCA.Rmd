@@ -380,6 +380,8 @@ evaluatefit<-function(depvar,method,q,T=180,result=0,ifdiff=1,numdepvar=9,ifprin
 ```{r}
 #default using differencing
 #T must correspond to result obeject T=len(result)+12
+#depvar 中间投入 
+#T 时间长度
 evaluatepre<-function(result,data=0,depvar,T,q,step=36,var=1:9){
   if(dim(result$states)[2]!=T-12){return("time length error")}
   deltaM<-depvar[13:T,]-depvar[1:{T-12},]
@@ -415,6 +417,35 @@ evaluatepre<-function(result,data=0,depvar,T,q,step=36,var=1:9){
 ```
 
 ```{r}
+q=10
+preforward=36
+alpha=6
+beta=5
+itthres=-5
+path<-getwd()
+
+
+
+depvartrain<-depvartrain[1:180,]
+for (k in 1:preforward) {
+  print(k)
+    filename<-paste("/PCs/result","iter",as.character(k),"a",as.character(alpha),"b",as.character(beta),"i",as.character(itthres),"q",as.character(q),".csv",sep = "")
+    pathname<-paste(path,filename,sep = "")
+
+ # while (!file.exists(pathname)) {
+  #  Sys.sleep(1)
+   # print("File does not exist")
+  #}
+  data<-read.csv(pathname,header = FALSE)
+  data<-as.matrix(data)
+  result<-marss.dfm(t(data),q)
+  
+  depvartrain<-rbind(depvartrain,as.matrix(evaluatepre(result = result,depvar = depvartrain,T=179+k,q=q,step = 1)))
+} 
+
+```
+
+```{r}
 # dynamic pca method
 dpca<-function(X,N,T,q=0,C=1,method="EPCA",window=6){
   Fhat<-NULL
@@ -432,6 +463,289 @@ dpca<-function(X,N,T,q=0,C=1,method="EPCA",window=6){
 }
 ```
 
+```{r}
+depvar<-read.csv("./Prediction_Task/data/0217.csv",encoding="UTF-8")
+depvar[,1]<-NULL
+depvar<-as.data.frame(depvar)
+deltadepvar=depvar[13:192,]-depvar[1:180,]
+#depvar=sumof(depvar,3)
+arimaresult=deltadepvar
+for (i in 1:9) {
+  for (j in seq(84,168,12)) {
+    seqused=deltadepvar[1:j,i]
+    for (k in 1:12) {
+      
+    
+  
+  #arimamodel<-auto.arima(seqused,d=1,max.p = 13,max.q = 13)
+  arimamodel<-arima(seqused,order=c(1,1,1))
+  arimaresult[j+k,i]=forecast(arimamodel)$mean[1]
+  seqused=c(seqused,forecast(arimamodel)$mean[1])
+  }
+  }
+}
+arimaresult=arimaresult+depvar[1:180,]
+
+sqrt(sumof((sumof(arimaresult,12)-sumof(depvar,12))**2,16)/16)/sumof(depvar,12)[1,]
+write.csv(sumof(arimaresult,12),"added_month_arima.csv")
+#sqrt(sumof((arimaresult-depvar)**2,12)/12)
+#sum(abs(sumof((arimaresult-depvar)/depvar,12)))
+```
 
 
+```{r}
+depvar<-read.csv("./Prediction_Task/data/final_use_month_adjust.csv",encoding="UTF-8")
+depvar[,1]<-NULL
+depvar<-as.data.frame(depvar)
+depvar=sumof(depvar,3)
+arimaresult=depvar
+for (i in 1:9) {
+  for (j in seq(32,60,4)) {
+    seqused=depvar[1:j,i]
+    for (k in 1:4) {
+      
+    
+  
+  arimamodel<-auto.arima(seqused,d=1,max.p = 13,max.q = 13)
+  arimaresult[j+k,i]=forecast(arimamodel)$mean[1]
+  seqused=c(seqused,forecast(arimamodel)$mean[1])
+  }
+  }
+}
+(arimaresult-depvar)[33:64,]/(depvar)[33:64,]
+
+sqrt(sumof((sumof(arimaresult,4)-sumof(depvar,4))**2,16)/16)/sumof(depvar,4)[1,]
+
+sqrt(sumof((arimaresult-depvar)**2,12)/12)
+sum(abs(sumof((arimaresult-depvar)/depvar,12)))
+```
+
+
+
+```{r}
+depvar<-read.csv("./Prediction_Task/data/added_value.csv",encoding="UTF-8")
+depvar[,1]<-NULL
+depvar<-as.data.frame(depvar)
+depvar=sumof(depvar,3)
+deltadepvar=depvar[5:64,]-depvar[1:60,]
+arimaresult=deltadepvar
+for (i in 1:9) {
+  for (j in seq(28,56,4)) {
+    seqused=deltadepvar[1:j,i]
+    for (k in 1:4) {
+    
+  arimamodel<-auto.arima(seqused,max.p = 13,max.q = 13)
+  arimaresult[j+k,i]=forecast(arimamodel)$mean[1]
+  seqused=c(seqused,forecast(arimamodel)$mean[1])
+  }
+  }
+}
+
+arimaresult=arimaresult+depvar[1:60,]
+(arimaresult[29:60,]-depvar[33:64,])/(depvar)[33:64,]
+
+sqrt(sumof((sumof(arimaresult,4)-sumof(depvar,4))**2,16)/16)/sumof(depvar,4)[1,]
+
+sqrt(sumof((arimaresult-depvar)**2,12)/12)
+sum(abs(sumof((arimaresult-depvar)/depvar,12)))
+```
+
+
+
+```{r}
+#T 时间长度
+evaluatepre<-function(result,data=0,depvar,T,q,step=36,var=1:9){
+  if(dim(result$states)[2]!=T-12){return("time length error")}
+  deltaM<-depvar[13:T,]-depvar[1:{T-12},]
+  if(data!=0){
+    #factorspre<-factorestimation(t(data)[,1:T],681,T,q,1,"WPCAdiagonal")[[1]]
+    result=marss.dfm(data,q)
+  }
+  predresult<-NULL
+  pre<-predict(result,n.ahead = step,type = "xtT")
+  predfactors<-matrix(rep(0,step*q),ncol = q)
+  for (i in 1:q) {
+    for (j in 1:step) {
+      predfactors[j,i]<-pre$pred$estimate[{i-1}*{T-12+step}+j+{T-12}]
+    }
+  }
+  predfactors<-cbind(rep(1,step),predfactors)
+  for (ii in var) {
+    fit<-as.data.frame(cbind(deltaM[,ii],t(result$states)[1:{T-12},]))
+    
+    lmodel<-lm(V1~.,fit)
+    coef<-matrix(lmodel$coefficients,ncol = 1)
+    predresult<-cbind(predresult,predfactors%*%coef)
+  }
+  colnames(predresult)<-colnames(depvar)
+  predresult<-rbind(depvar[1:T,],predresult)
+  for (iii in 1:step) {
+    predresult[T+iii,]=predresult[T+iii-12,]+predresult[T+iii,]
+  }
+  return(predresult[{T+1}:{T+step},])
+  #return(predresult)
+}
+
+```
+
+
+
+```{r}
+setwd("/Users/mayuheng/Documents/GitHub/DFM/Prediction_Task")
+data<-read.csv("./data/hidata.csv",encoding="UTF-8")
+data[,1]<-NULL
+#data<-data[25:240,]
+data<-as.matrix(data)
+
+
+
+
+depvar1<-read.csv("./import.csv",encoding="UTF-8")
+depvar1[,1]<-NULL
+depvar1<-as.data.frame(depvar1)
+depvartrain1<-depvar1
+depvar2<-read.csv("./data/added_value.csv",encoding="UTF-8")
+depvar2[,1]<-NULL
+depvar2<-as.data.frame(depvar2)
+depvartrain2<-depvar2
+depvar3<-read.csv("./data/final_use_month_adjust.csv",encoding="UTF-8")
+depvar3[,1]<-NULL
+depvar3<-as.data.frame(depvar3)
+depvartrain3<-depvar3
+preforward=c(36,24,36,24,24)
+usetopre=c(72,108,132,168,192)
+depvarsave1<-NULL
+depvarsave2<-NULL
+depvarsave3<-NULL
+for (y in 1:4){
+
+  depvartrain1=depvar1[1:usetopre[y],]
+  depvartrain2=depvar2[1:usetopre[y],]
+  depvartrain3=depvar3[1:usetopre[y],]
+  
+
+  for (j in 1:preforward[y]) {
+    print(j)
+    depvartrain1=rbind(depvartrain1,rep(0,9))
+    depvartrain2=rbind(depvartrain2,rep(0,9))
+    depvartrain3=rbind(depvartrain3,rep(0,9))
+    prefactors<-factorestimation(t(data[1:{usetopre[y]+j},]),2141,usetopre[y]+j,q=3,C,method="PCA",ifprint=0)[[1]]
+    
+    factors=prefactors[1:{usetopre[y]+j-1},]
+    prefactors<-matrix(prefactors[usetopre[y]+j,],nrow =1)
+    for (i in 1:9) {
+  seqused=depvartrain1[1:{usetopre[y]+j-1},i]
+  #arimamodel<-auto.arima(seqused,d=1,max.p = 13,max.q = 13,xreg = factors*sqrt(usetopre[y]+j-1))
+  arimamodel<-auto.arima(seqused,d=1,max.p = 13,max.q = 13)
+  
+  #depvartrain1[j+usetopre[y],i]=forecast(arimamodel,xreg = prefactors*sqrt(usetopre[y]+j-1))$mean[1]
+  depvartrain1[j+usetopre[y],i]=forecast(arimamodel)$mean[1]
+  #seqused=depvartrain2[1:{usetopre[y]+j-1},i]
+  #arimamodel<-auto.arima(seqused,d=1,max.p = 13,max.q = 13,xreg = factors*sqrt(usetopre[y]+j-1))
+  #depvartrain2[j+usetopre[y],i]=forecast(arimamodel,xreg = prefactors*sqrt(usetopre[y]+j-1))$mean[1]
+  #seqused=depvartrain3[1:{usetopre[y]+j-1},i]
+  #arimamodel<-auto.arima(seqused,d=1,max.p = 13,max.q = 13,xreg = factors*sqrt(usetopre[y]+j-1))
+  #depvartrain3[j+usetopre[y],i]=forecast(arimamodel,xreg = prefactors*sqrt(usetopre[y]+j-1))$mean[1]
+  
+  
+  }
+}
+
+  index=dim(depvartrain1)[1]
+  depvarsave1=rbind(depvarsave1,depvartrain1[{index-11}:index,])
+  depvarsave2=rbind(depvarsave2,depvartrain2[{index-11}:index,])
+  depvarsave3=rbind(depvarsave3,depvartrain3[{index-11}:index,])
+}
+#write.csv(sumof(depvarsave1,12),"midinputarima.csv")
+#write.csv(sumof(depvarsave2,12),"addedarima.csv")
+#write.csv(sumof(depvarsave3,12),"finalusearima.csv")
+```
+
+
+
+```{r}
+setwd("/Users/mayuheng/Documents/GitHub/DFM/Prediction_Task")
+added<-read.csv("./data/added_value.csv",encoding="UTF-8")
+added[,1]<-NULL
+import<-read.csv("./data/import.csv",encoding="UTF-8")
+import[,1]<-NULL
+importmonth<-matrix(rep(0,9*16*12),ncol = 9)
+for (i in 1:16) {
+  for (j in 1:12) {
+    for (k in 1:9) {
+      
+    
+    importmonth[i*12-12+j,k]=import[i,k]*added[i*12-12+j,k]/sumof(added,12)[i,k]
+    }
+  }
+}
+
+```
+```{r}
+```{r}
+q=10
+data<-read.csv("./data/hidata.csv",encoding="UTF-8")
+data[,1]<-NULL
+data<-data[25:240,]
+data<-as.matrix(data)
+setwd(".")
+depvar1<-read.csv("./data/0217.csv",encoding="UTF-8")
+depvar1[,1]<-NULL
+depvar1<-as.data.frame(depvar1)
+depvartrain1<-depvar1
+depvar2<-read.csv("./data/added_value.csv",encoding="UTF-8")
+depvar2[,1]<-NULL
+depvar2<-as.data.frame(depvar2)
+depvartrain2<-depvar2
+depvar3<-read.csv("./data/final_use_month_adjust.csv",encoding="UTF-8")
+depvar3[,1]<-NULL
+depvar3<-as.data.frame(depvar3)
+depvartrain3<-depvar3
+depvar4<-read.csv("./data/import.csv",encoding="UTF-8")
+depvar4[,1]<-NULL
+depvar4<-as.data.frame(depvar4)
+depvartrain4<-depvar4
+#preforward=c(36,24,36,24,24)
+preforward=c(36,24,36,24,36)-12
+#preforward=c(24,12,24)
+usetopre=c(72,108,132,168,192)
+#usetopre=c(48,192,192)
+depvarsave1<-NULL
+depvarsave2<-NULL
+depvarsave3<-NULL
+depvarsave4<-NULL
+for (i in 4){
+
+
+  depvartrain1=depvar1[1:usetopre[i],]
+  #depvartrain2=depvar2[1:usetopre[i],]
+  #depvartrain3=depvar3[1:usetopre[i],]
+  #depvartrain4=depvar4[1:usetopre[i],]
+for (k in 1:preforward[i]) {
+  print(k)
+  
+  factors<-factorestimation(t(data[1:{usetopre[i]+k-1},]),2141,{usetopre[i]+k-1},q=q,C=1,method = "PCA")[[1]]
+
+  factors<-as.matrix(factors)
+  result<-marss.dfm(t(factors),q)
+
+  depvartrain1<-rbind(depvartrain1,as.matrix(evaluatepre(result = result,depvar = depvartrain1,T=usetopre[i]+k-1,q=q,step = 1)))
+ #depvartrain2<-rbind(depvartrain2,as.matrix(evaluatepre(result = result,depvar = depvartrain2,T=usetopre[i]+k-1,q=q,step = 1)))
+ #depvartrain3<-rbind(depvartrain3,as.matrix(evaluatepre(result = result,depvar = depvartrain3,T=usetopre[i]+k-1,q=q,step = 1)))
+ #depvartrain4<-rbind(depvartrain4,as.matrix(evaluatepre(result = result,depvar = depvartrain4,T=usetopre[i]+k-1,q=q,step = 1)))
+  #print(depvartrain)
+} 
+
+  index=dim(depvartrain1)[1]
+  depvarsave1=rbind(depvarsave1,depvartrain1[{index-preforward[i]}:index,])
+  #depvarsave2=rbind(depvarsave2,depvartrain2[{index-11}:index,])
+  #depvarsave3=rbind(depvarsave3,depvartrain3[{index-11}:index,])
+  #depvarsave4=rbind(depvarsave4,depvartrain4[{index-11}:index,])
+}
+#write.csv(depvarsave1,"midinputpca.csv")
+#write.csv(depvarsave2,"addedpca.csv")
+#write.csv(depvarsave3,"finalusepca.csv")
+#write.csv(depvarsave4,"importpca.csv")
+```
+```
 
