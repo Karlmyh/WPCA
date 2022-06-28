@@ -1,3 +1,3 @@
-# Weighted PCA
+# ASPCANC
 
-Codes and experiment result for dynamic factor model predictions using high dimensional adaptive sparse pca.
+Codes and experiment result for dynamic factor model predictions in nowcasting using high dimensional adaptive sparse pca.
